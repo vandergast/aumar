@@ -1,9 +1,31 @@
 const express = require('express')
-const { config } = require('./config/config.env')
+const app = express()
 
-let app = express()
+const { port, env } = require('./config/config')
+const graphqlHTTP = require('express-graphql')
+const ncSchema = require('./schema/schema')
 
-app.use(express.static('dist'))
+// PostgreSQL Database dependencies
+const pg = require('pg')
+const pgConfig = require('./config/pg')[env]
+const pgPool = new pg.Pool(pgConfig)
 
-app.listen(config.port)
+// MongoDB Database dependencies
+const { MongoClient } = require('mongodb')
+const assert = require('assert')
+const { url } = require('./config/mongo')[env]
+
+MongoClient.connect(url, (err, mPool) => {
+  assert.equal(err, null)
+})
+
+app.use('/', graphqlHTTP({
+  schema: ncSchema,
+  graphiql: true,
+  context: { pgPool }
+}))
+
+app.listen(port, () => {
+  console.log(`Server is listening on port ${port}`)
+})
 
